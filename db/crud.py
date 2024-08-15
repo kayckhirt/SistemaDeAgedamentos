@@ -99,12 +99,11 @@ def verificar_disponibilidade(barbeiro_id, data, horario, duracao):
     return True
 
 
-def marcar_agendamento(cliente_id, barbeiro_id, data, horario, servico):
+def marcar_agendamento(cliente_id, barbeiro_id, data, horario, servico, valor):
     try:
         data_formatada = datetime.strptime(data, '%d/%m/%Y').strftime('%Y-%m-%d')
     except ValueError:
-        print("Formato de data inválido. Use DD/MM/AAAA.")
-        return
+        raise ValueError("Formato de data inválido. Use DD/MM/AAAA.")
 
     duracao = timedelta(minutes=30) if servico in ['cabelo', 'barba'] else timedelta(hours=1)
 
@@ -116,29 +115,39 @@ def marcar_agendamento(cliente_id, barbeiro_id, data, horario, servico):
                 conn = sqlite3.connect('barbearia.db')
                 cursor = conn.cursor()
                 cursor.execute('''
-                INSERT INTO agendamentos (cliente_id, barbeiro_id, data, horario, servico) 
-                VALUES (?, ?, ?, ?, ?)
-                ''', (cliente_id, barbeiro_id, data_formatada, horario, servico))
+                INSERT INTO agendamentos (cliente_id, barbeiro_id, data, horario, servico, valor) 
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''', (cliente_id, barbeiro_id, data_formatada, horario, servico, valor))
                 conn.commit()
                 conn.close()
-                print("Agendamento realizado com sucesso!")
                 sucesso = True
             else:
-                print("Horário não disponível. Escolha outro horário.")
-                sucesso = True  # Sair do loop se o horário não estiver disponível
-                raise ValueError("Horário não disponível. Escolha outro horário.")
+                raise Exception("Horário não disponível. Escolha outro horário.")
         except sqlite3.OperationalError as e:
-            print(f"Erro ao acessar o banco de dados: {e}")
             tentativa += 1
-            time.sleep(0.1)  # Espera um pouco antes de tentar novamente
-            raise RuntimeError(f"Erro ao acessar o banco de dados após várias tentativas: {e}")
+            time.sleep(0.1)
         finally:
             if 'conn' in locals():
                 conn.close()
 
     if not sucesso:
-        print("Não foi possível realizar o agendamento após várias tentativas.")
-        raise RuntimeError("Não foi possível realizar o agendamento após várias tentativas.")
+        raise Exception("Não foi possível realizar o agendamento após várias tentativas.")
+
+
+def calcular_lucro_mensal(mes, ano):
+    conn = sqlite3.connect('barbearia.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT b.nome, SUM(a.valor) as total_faturado
+    FROM agendamentos a
+    JOIN barbeiros b ON a.barbeiro_id = b.id
+    WHERE strftime('%m', a.data) = ? AND strftime('%Y', a.data) = ?
+    GROUP BY b.nome
+    ORDER BY total_faturado DESC
+    ''', (f"{mes:02}", str(ano)))
+    lucros = cursor.fetchall()
+    conn.close()
+    return lucros
 
 
 def remover_agendamentos_antigos():

@@ -27,6 +27,7 @@ def criar_banco():
         data TEXT NOT NULL,
         horario TEXT NOT NULL,
         servico TEXT NOT NULL,
+        valor REAL NOT NULL, -- Adiciona a coluna valor do serviço
         FOREIGN KEY(cliente_id) REFERENCES clientes(id),
         FOREIGN KEY(barbeiro_id) REFERENCES barbeiros(id)
     )

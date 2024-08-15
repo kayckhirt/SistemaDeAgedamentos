@@ -8,7 +8,8 @@ from db.crud import (
     listar_clientes,
     buscar_cliente_por_nome,
     marcar_agendamento,
-    remover_agendamentos_antigos
+    calcular_lucro_mensal,
+    remover_agendamentos_antigos,
 )
 
 # Funções auxiliares
@@ -31,7 +32,7 @@ def adicionar_barbeiro_interface(nome_entry):
 
 
 def listar_agendamentos_interface(tree):
-    remover_agendamentos_antigos()  # Remove agendamentos antigos antes de listar
+    remover_agendamentos_antigos()
     for row in tree.get_children():
         tree.delete(row)
     agendamentos = listar_agendamentos_atuais()
@@ -56,23 +57,21 @@ def buscar_cliente_interface(nome_entry, tree):
         tree.insert('', 'end', values=cliente)
 
 
-def marcar_agendamento_interface(cliente_id_entry, barbeiro_id_entry, data_entry, horario_entry, servico_entry):
+def marcar_agendamento_interface(cliente_id_entry, barbeiro_id_entry, data_entry, horario_entry, servico_entry, valor_entry):
     cliente_id = int(cliente_id_entry.get())
     barbeiro_id = int(barbeiro_id_entry.get())
     data = data_entry.get()
     horario = horario_entry.get()
     servico = servico_entry.get()
-
+    valor = float(valor_entry.get())
     try:
-        marcar_agendamento(cliente_id, barbeiro_id, data, horario, servico)
-        exibir_mensagem("Sucesso", f"Agendado para a data: '{data}'servico: {servico}")
+        marcar_agendamento(cliente_id, barbeiro_id, data, horario, servico, valor)
+        exibir_mensagem("Sucesso", f"Agendamento realizado para {data} às {horario}, Serviço: {servico}, Valor: R${valor:.2f}")
     except Exception as e:
-        messagebox.showerror("Horário não disponível. Escolha outro horário.", str(e))
+        exibir_mensagem("Erro", str(e))
 
 
 # Inicializar o banco de dados
-
-
 criar_banco()
 
 # Configuração da interface gráfica
@@ -124,6 +123,39 @@ nome_busca_entry = tk.Entry(frame_buscar_cliente, width=30)
 nome_busca_entry.pack(pady=5)
 tk.Button(frame_buscar_cliente, text="Buscar Cliente", command=lambda: buscar_cliente_interface(nome_busca_entry, tree_clientes)).pack(pady=10)
 
+# Aba de visualização de lucros
+frame_lucros = ttk.Frame(notebook, width=400, height=280)
+frame_lucros.pack(fill='both', expand=True)
+notebook.add(frame_lucros, text='Lucros do Mês')
+
+tk.Label(frame_lucros, text="Mês (MM)").pack(pady=5)
+mes_lucro_entry = tk.Entry(frame_lucros, width=30)
+mes_lucro_entry.pack(pady=5)
+
+tk.Label(frame_lucros, text="Ano (AAAA)").pack(pady=5)
+ano_lucro_entry = tk.Entry(frame_lucros, width=30)
+ano_lucro_entry.pack(pady=5)
+
+tree_lucros = ttk.Treeview(frame_lucros, columns=('Barbeiro', 'Lucro'), show='headings')
+tree_lucros.heading('Barbeiro', text='Barbeiro')
+tree_lucros.heading('Lucro', text='Lucro')
+tree_lucros.pack(pady=20)
+
+tk.Button(frame_lucros, text="Ver Lucros", command=lambda: ver_lucros_interface(mes_lucro_entry, ano_lucro_entry, tree_lucros)).pack(pady=10)
+
+
+def ver_lucros_interface(mes_entry, ano_entry, tree):
+    mes = int(mes_entry.get())
+    ano = int(ano_entry.get())
+    lucros = calcular_lucro_mensal(mes, ano)
+
+    for row in tree.get_children():
+        tree.delete(row)
+
+    for lucro in lucros:
+        tree.insert('', 'end', values=lucro)
+
+
 # Aba de listar agendamentos
 frame_listar_agendamentos = ttk.Frame(notebook, width=400, height=280)
 frame_listar_agendamentos.pack(fill='both', expand=True)
@@ -148,19 +180,28 @@ notebook.add(frame_agendamento, text='Marcar Agendamento')
 tk.Label(frame_agendamento, text="ID do Cliente").pack(pady=5)
 cliente_id_entry = tk.Entry(frame_agendamento, width=30)
 cliente_id_entry.pack(pady=5)
+
 tk.Label(frame_agendamento, text="ID do Barbeiro").pack(pady=5)
 barbeiro_id_entry = tk.Entry(frame_agendamento, width=30)
 barbeiro_id_entry.pack(pady=5)
+
 tk.Label(frame_agendamento, text="Data (DD/MM/AAAA)").pack(pady=5)
 data_entry = tk.Entry(frame_agendamento, width=30)
 data_entry.pack(pady=5)
+
 tk.Label(frame_agendamento, text="Horário (HH:MM)").pack(pady=5)
 horario_entry = tk.Entry(frame_agendamento, width=30)
 horario_entry.pack(pady=5)
+
 tk.Label(frame_agendamento, text="Serviço (cabelo, barba, cabelo e barba)").pack(pady=5)
 servico_entry = tk.Entry(frame_agendamento, width=30)
 servico_entry.pack(pady=5)
 
-tk.Button(frame_agendamento, text="Marcar Agendamento", command=lambda: marcar_agendamento_interface(cliente_id_entry, barbeiro_id_entry, data_entry, horario_entry, servico_entry)).pack(pady=10)
+tk.Label(frame_agendamento, text="Valor do Serviço (R$)").pack(pady=5)
+valor_entry = tk.Entry(frame_agendamento, width=30)
+valor_entry.pack(pady=5)
+
+tk.Button(frame_agendamento, text="Marcar Agendamento", command=lambda: marcar_agendamento_interface(cliente_id_entry, barbeiro_id_entry, data_entry, horario_entry, servico_entry, valor_entry)).pack(pady=10)
+
 
 root.mainloop()
